@@ -1,0 +1,60 @@
+# Terraform
+**/.terraform/*
+terraform.rc
+*.rc
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Ansible
+/tests/output/
+/changelogs/.plugin-cache.yaml
+output/
+logs/
+.collection_root/*
+
+# Ignore everything inside roles/
+**/roles/**
+# But track roles/requirements.yml
+!**/roles/requirements.yml
+# Ignore everything inside collections/
+**/collections/**
+# But track collections/requirements.yml
+!**/collections/requirements.yml
+# Always track .gitkeep files everywhere
+!**/.gitkeep
+
+# Ignore generic files
+*.pyc
+*.tar.gz
+*.rpm
+
+### Credentials
+.vaultid
+**/kubeconfig.yaml
+.*vault*
+
+### Vagrant project files
+.vagrant
+.vagrant.d
+
+### Visual Studio Code / Intellij IDEA Project Files
+.vscode
+.code-workspace
+.idea
+
+# MacOS cruft
+.DS_Store
+
+### Ansible
+*.retry
+
+.venv/
+.logging/
+*.log
+*.swp
+*.zip
+.vault_pass
+.vault_pass.txt
+*.swp
+
