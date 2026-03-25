@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # bootstrap_and_sync_fixed.sh
 # Usage: ./bootstrap_and_sync_fixed.sh <github-username-or-org>
-# Ensure GITHUB_TOKEN is set
+# Requires: gh CLI authenticated (gh auth login)
 
 set -e
+
+if ! gh auth status &>/dev/null; then
+  echo "❌ gh CLI is not authenticated. Run: gh auth login"
+  exit 1
+fi
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <github-username-or-org>"
@@ -20,7 +25,6 @@ echo "Submodules will be cloned alongside main project into: $PARENT_DIR"
 declare -A SUBMODULE_TEMPLATES
 SUBMODULE_TEMPLATES[ansible]="https://github.com/mto79/project_ansible_template.git"
 SUBMODULE_TEMPLATES[terraform]="https://github.com/mto79/project_terraform_template.git"
-SUBMODULE_TEMPLATES[kubernetes]="https://github.com/mto79/project_kubernetes_template.git"
 
 # Convert string to snake_case
 to_snake_case() {
@@ -32,36 +36,23 @@ to_snake_case() {
 # Create GitHub repo if not exists
 create_github_repo() {
   local repo_name="$1"
-  response=$(curl -s -w "%{http_code}" -o /tmp/git_response.json \
-    -H "Authorization: token $GITHUB_TOKEN" \
-    -d "{\"name\":\"$repo_name\",\"private\":false}" \
-    https://api.github.com/user/repos)
-  http_code="${response: -3}"
-  if [ "$http_code" -eq 401 ]; then
-    echo "❌ Authentication failed. Check GITHUB_TOKEN"
-    cat /tmp/git_response.json
-    exit 1
-  elif [ "$http_code" -ne 201 ] && [ "$http_code" -ne 422 ]; then
-    echo "❌ Failed to create repository $repo_name. HTTP code $http_code"
-    cat /tmp/git_response.json
-    exit 1
+  if gh repo view "$GITHUB_USER/$repo_name" &>/dev/null; then
+    echo "Repo $repo_name already exists, skipping creation"
+  else
+    gh repo create "$GITHUB_USER/$repo_name" --public --confirm 2>/dev/null || \
+    gh repo create "$repo_name" --public 2>/dev/null || true
+    echo "Created GitHub repo $repo_name"
   fi
 }
 
 # Delete GitHub repo
 delete_github_repo() {
   local repo_name="$1"
-  http_code=$(curl -s -o /tmp/git_response.json -w "%{http_code}" \
-    -X DELETE \
-    -H "Authorization: token $GITHUB_TOKEN" \
-    "https://api.github.com/repos/$GITHUB_USER/$repo_name")
-  if [ "$http_code" -eq 204 ]; then
+  if gh repo view "$GITHUB_USER/$repo_name" &>/dev/null; then
+    gh repo delete "$GITHUB_USER/$repo_name" --yes
     echo "Deleted GitHub repo $repo_name"
-  elif [ "$http_code" -eq 404 ]; then
-    echo "Repo $repo_name not found on GitHub, skipping deletion"
   else
-    echo "⚠ Failed to delete GitHub repo $repo_name. HTTP code $http_code"
-    cat /tmp/git_response.json
+    echo "Repo $repo_name not found on GitHub, skipping deletion"
   fi
 }
 
