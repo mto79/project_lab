@@ -1,0 +1,37 @@
+gitops_tool:
+  type: str
+  help: "GitOps tool to use"
+  choices:
+    - argocd
+    - fluxcd
+  default: argocd
+
+project_name:
+  type: str
+  help: "Project name (snake_case)"
+
+environments:
+  type: yaml
+  help: "List of environments"
+  default: "['dev', 'staging', 'prod']"
+
+helm_repo_url:
+  type: str
+  help: "Helm chart repository URL (GitHub Pages or OCI)"
+  default: "https://charts.example.com"
+
+argocd_namespace:
+  type: str
+  help: "Namespace to install ArgoCD into"
+  default: "argocd"
+  when: "{{ gitops_tool == 'argocd' }}"
+
+flux_namespace:
+  type: str
+  help: "Namespace to install Flux into"
+  default: "flux-system"
+  when: "{{ gitops_tool == 'fluxcd' }}"
+
+_subdirectory: template
+_jinja_extensions:
+  - jinja2_time.TimeExtension

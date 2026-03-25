@@ -1,0 +1,22 @@
+{% if gitops_tool == 'argocd' %}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ project_name }}-apps
+  namespace: {{ argocd_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mto79/{{ project_name }}-gitops
+    targetRevision: main
+    path: apps/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ argocd_namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{% endif %}

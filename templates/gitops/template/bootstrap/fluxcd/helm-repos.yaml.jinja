@@ -1,0 +1,10 @@
+{% if gitops_tool == 'fluxcd' %}
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: {{ project_name }}-charts
+  namespace: {{ flux_namespace }}
+spec:
+  interval: 1h0m0s
+  url: {{ helm_repo_url }}
+{% endif %}

@@ -1,0 +1,11 @@
+{% if gitops_tool == 'argocd' %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-install
+  namespace: {{ argocd_namespace }}
+  annotations:
+    note: "Apply upstream install first: kubectl apply -n {{ argocd_namespace }} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+data:
+  upstream: "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+{% endif %}
