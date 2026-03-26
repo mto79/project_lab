@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# bootstrap_and_sync_fixed.sh
-# Usage: ./bootstrap_and_sync_fixed.sh <github-username-or-org>
+# bootstrap.sh
+# Usage: ./bootstrap.sh <github-username-or-org>
 # Requires: gh CLI authenticated (gh auth login)
 
 set -e
