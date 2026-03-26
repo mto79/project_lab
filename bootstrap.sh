@@ -120,13 +120,9 @@ for submodule in "${!SUBMODULE_TEMPLATES[@]}"; do
     git submodule add "$ORIGIN_URL" "$submodule"
   fi
 
-  # Sync content into the submodule working dir and push
-  rsync -a --exclude '.git/' "$CLONE_DIR"/ "$submodule"/
-  cd "$submodule"
-  git add .
-  git commit -m "Sync content from $NEW_REPO_NAME" || echo "No changes to commit"
-  git push origin main --force
-  cd -
+  # Advance the submodule pointer to the latest commit just pushed to CLONE_DIR.
+  # No rsync needed — the content is already on the remote via CLONE_DIR.
+  git submodule update --remote "$submodule"
 done
 
 # ---------------------------
@@ -157,8 +153,8 @@ fi
 # ---------------------------
 # Finalize main project
 # ---------------------------
-git submodule update --init --recursive
 git add .gitmodules
+git add $(git submodule foreach --quiet 'echo $displaypath') 2>/dev/null || git add -u
 git commit -m "Sync submodules for $MAIN_PROJECT_NAME" || echo "No changes to commit"
 git push origin main
 
