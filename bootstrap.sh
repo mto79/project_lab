@@ -41,8 +41,7 @@ create_github_repo() {
   if gh repo view "$GITHUB_USER/$repo_name" &>/dev/null; then
     echo "Repo $repo_name already exists, skipping creation"
   else
-    gh repo create "$GITHUB_USER/$repo_name" --public --confirm 2>/dev/null || \
-    gh repo create "$repo_name" --public 2>/dev/null || true
+    gh repo create "$GITHUB_USER/$repo_name" --public 2>/dev/null || true
     echo "Created GitHub repo $repo_name"
   fi
 }
@@ -59,28 +58,11 @@ delete_github_repo() {
 }
 
 # ---------------------------
-# Helper: safe fetch + merge
-# ---------------------------
-safe_fetch_merge() {
-  local branch="$1"
-  local remote="$2"
-  git fetch "$remote" || true
-
-  # If histories are disjoint, force push
-  if ! git merge-base --is-ancestor "$remote/$branch" "$branch" 2>/dev/null; then
-    echo "⚡ Histories are disjoint; force pushing local $branch to $remote"
-    git push "$remote" "$branch" --force
-  else
-    git merge "$remote/$branch" --allow-unrelated-histories -m "Merge $remote/$branch into local $branch" || true
-  fi
-}
-
-# ---------------------------
 # Handle main project repo
 # ---------------------------
 create_github_repo "$MAIN_PROJECT_NAME"
-git checkout main || git checkout -b main
-safe_fetch_merge main origin
+git checkout main 2>/dev/null || git checkout -b main
+git push -u origin main 2>/dev/null || true
 
 # ---------------------------
 # Handle submodules
@@ -88,65 +70,59 @@ safe_fetch_merge main origin
 for submodule in "${!SUBMODULE_TEMPLATES[@]}"; do
   TEMPLATE_URL="${SUBMODULE_TEMPLATES[$submodule]}"
   NEW_REPO_NAME=$(to_snake_case "${MAIN_PROJECT_NAME}_${submodule}")
-  echo "Processing submodule $submodule -> $NEW_REPO_NAME from template $TEMPLATE_URL"
+  CLONE_DIR="$PARENT_DIR/$NEW_REPO_NAME"
+  ORIGIN_URL="https://github.com/$GITHUB_USER/$NEW_REPO_NAME.git"
+  echo ""
+  echo "==> $submodule → $NEW_REPO_NAME"
 
-  # Remove orphaned submodule folder if exists
-  if [ -d "$submodule" ] && ! git ls-files --error-unmatch "$submodule" >/dev/null 2>&1; then
-    rm -rf "$submodule"
-  fi
-
-  # Clone template temporarily
-  TEMP_DIR="$submodule-temp"
-  if [ ! -d "$TEMP_DIR" ]; then
-    git clone "$TEMPLATE_URL" "$TEMP_DIR"
-  fi
-
-  # Create GitHub repo for submodule
   create_github_repo "$NEW_REPO_NAME"
 
-  # Push template content to new repo
-  cd "$TEMP_DIR"
-  git remote remove origin 2>/dev/null || true
-  git remote add origin "https://github.com/$GITHUB_USER/$NEW_REPO_NAME.git"
-  safe_fetch_merge main origin
-  cd ..
-
-  # Add submodule to main project if missing
-  if ! git config -f .gitmodules --get-regexp path | grep -q "^submodule\.$submodule\.path"; then
-    git submodule add "https://github.com/$GITHUB_USER/$NEW_REPO_NAME.git" "$submodule"
-  fi
-
-  rm -rf "$TEMP_DIR"
-
-  # Clone the new repo alongside main project if missing
-  CLONE_DIR="$PARENT_DIR/$NEW_REPO_NAME"
   if [ ! -d "$CLONE_DIR" ]; then
-    git clone "https://github.com/$GITHUB_USER/$NEW_REPO_NAME.git" "$CLONE_DIR"
-  fi
-
-  # Sync template updates into new repo safely
-  cd "$CLONE_DIR"
-  if ! git remote | grep -q template; then
-    git remote add template "$TEMPLATE_URL"
+    # Clone from template so the project repo shares its history from day one.
+    # Subsequent `git merge template/main` calls will always fast-forward or
+    # produce a clean merge — no unrelated histories ever again.
+    git clone "$TEMPLATE_URL" "$CLONE_DIR"
+    cd "$CLONE_DIR"
+    git remote rename origin template
+    git remote add origin "$ORIGIN_URL"
+    git push -u origin main
   else
+    cd "$CLONE_DIR"
+    # Ensure remotes are present and up to date
+    git remote get-url origin   &>/dev/null || git remote add origin   "$ORIGIN_URL"
+    git remote get-url template &>/dev/null || git remote add template "$TEMPLATE_URL"
     git remote set-url template "$TEMPLATE_URL"
+
+    # Stash local changes so they don't block the merge
+    git stash --include-untracked 2>/dev/null || true
+
+    git fetch origin
+    git fetch template
+
+    # Merge template updates.
+    # --allow-unrelated-histories is a one-time reconciliation for repos that
+    # diverged before this script was fixed; once merged they share ancestry
+    # and this flag becomes a no-op on all future runs.
+    git merge template/main \
+      --allow-unrelated-histories \
+      -m "Merge template updates into $NEW_REPO_NAME" \
+      || echo "⚠ Merge conflicts in $NEW_REPO_NAME — resolve manually"
+
+    git push origin main
   fi
-
-  safe_fetch_merge main origin
-
-  git fetch template
-  git merge template/main -m "Merge template updates" || echo "⚠ Merge conflicts in $NEW_REPO_NAME! Resolve manually"
-
-  git push origin main --force
   cd -
 
-  # Update submodule folder in main project
+  # Register as submodule in the parent project if missing
+  if ! git config -f .gitmodules --get "submodule.$submodule.url" &>/dev/null; then
+    git submodule add "$ORIGIN_URL" "$submodule"
+  fi
+
+  # Sync content into the submodule working dir and push
   rsync -a --exclude '.git/' "$CLONE_DIR"/ "$submodule"/
   cd "$submodule"
   git add .
   git commit -m "Sync content from $NEW_REPO_NAME" || echo "No changes to commit"
   git push origin main --force
-
   cd -
 done
 
@@ -175,10 +151,13 @@ if [ -f .gitmodules ]; then
   done < <(git config -f .gitmodules --get-regexp '\.path$' 2>/dev/null | awk '{print $2}')
 fi
 
-# Update all submodules in main project
+# ---------------------------
+# Finalize main project
+# ---------------------------
 git submodule update --init --recursive
 git add .gitmodules
-git commit -m "Initialize/sync submodules for $MAIN_PROJECT_NAME" || echo "No changes to commit"
-git push origin main --force
+git commit -m "Sync submodules for $MAIN_PROJECT_NAME" || echo "No changes to commit"
+git push origin main
 
-echo "✅ Main project and all submodules are synced; histories handled safely, no -m error."
+echo ""
+echo "✅ All submodules synced."
