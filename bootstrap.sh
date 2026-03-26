@@ -111,7 +111,7 @@ for submodule in "${!SUBMODULE_TEMPLATES[@]}"; do
       -m "Merge template updates into $NEW_REPO_NAME" \
       || echo "⚠ Merge failed in $NEW_REPO_NAME — resolve manually"
 
-    git push origin main
+    git push origin main --force
   fi
   cd -
 
