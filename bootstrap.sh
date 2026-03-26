@@ -103,10 +103,13 @@ for submodule in "${!SUBMODULE_TEMPLATES[@]}"; do
     # --allow-unrelated-histories is a one-time reconciliation for repos that
     # diverged before this script was fixed; once merged they share ancestry
     # and this flag becomes a no-op on all future runs.
+    # -X theirs ensures template content always wins on conflict so the project
+    # repo stays in sync without needing manual resolution.
     git merge template/main \
       --allow-unrelated-histories \
+      -X theirs \
       -m "Merge template updates into $NEW_REPO_NAME" \
-      || echo "⚠ Merge conflicts in $NEW_REPO_NAME — resolve manually"
+      || echo "⚠ Merge failed in $NEW_REPO_NAME — resolve manually"
 
     git push origin main
   fi
