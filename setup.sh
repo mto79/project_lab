@@ -22,12 +22,11 @@ echo "Main project: $MAIN_PROJECT_NAME"
 echo "Submodules will be cloned alongside main project into: $PARENT_DIR"
 
 # Submodules and their template URLs
-# Note: gitops is intentionally excluded — use copier to generate it as a standalone repo:
-#   copier copy gh:mto79/project_gitops_template <project>-gitops
 declare -A SUBMODULE_TEMPLATES
 SUBMODULE_TEMPLATES[ansible]="https://github.com/mto79/project_ansible_template.git"
 SUBMODULE_TEMPLATES[terraform]="https://github.com/mto79/project_terraform_template.git"
 SUBMODULE_TEMPLATES[helm]="https://github.com/mto79/project_helm_template.git"
+SUBMODULE_TEMPLATES[gitops]="https://github.com/mto79/project_gitops_template.git"
 
 # Convert string to snake_case
 to_snake_case() {

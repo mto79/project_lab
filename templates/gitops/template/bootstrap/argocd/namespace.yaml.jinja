@@ -1,6 +1,0 @@
-{% if gitops_tool == 'argocd' %}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ argocd_namespace }}
-{% endif %}
