@@ -3,7 +3,7 @@
 	url = https://github.com/mto79/project_lab_ansible.git
 [submodule "terraform"]
 	path = terraform
-	url = https://github.com/MTO79/project_lab_terraform.git
+	url = https://github.com/mto79/project_lab_terraform.git
 [submodule "helm"]
 	path = helm
 	url = https://github.com/mto79/project_lab_helm.git
